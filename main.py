@@ -24,27 +24,24 @@ class SentimentAnalysisService:
         self.db_service = DatabaseService(self.config.db)
         self.sentiment_analyzer = SentimentAnalyzer(self.config.gemini)
 
-    def analyze_token_sentiment(self, token_id: str) -> tuple[Optional[str], Optional[str]]:
+    def analyze_token_sentiment(self, token_id: str, twitter_handle: str) -> tuple[Optional[str], Optional[str]]:
         """
         Analyze a token's tweets to determine if the recent tweet contains unique information.
         
+        Args:
+            token_id: The ID of the token to analyze
+            twitter_handle: The Twitter handle associated with the token
+            
         Returns:
             Tuple of (decision, reason)
             decision: 'positive', 'negative', or None
             reason: Explanation for the decision or failure
         """
         try:
-            # Step 1: Fetch token information
-            token_info = self.db_service.fetch_token_info(token_id)
-            if not token_info:
-                return None, "No token information found"
-                
-            twitter_handle = token_info.get('twitter_handle')
-            
             if not twitter_handle:
                 return None, "No Twitter handle found for token"
 
-            # Step 2: Fetch recent tweets (most recent + 20 historical)
+            # Step 1: Fetch recent tweets (most recent + 20 historical)
             recent_tweets = self.db_service.fetch_recent_tweets(twitter_handle, limit=21)
             if not recent_tweets:
                 return None, f"No recent tweets found for Twitter handle: {twitter_handle}"
@@ -53,7 +50,7 @@ class SentimentAnalysisService:
             most_recent_tweet = recent_tweets[0]
             historical_tweets = recent_tweets[1:]
 
-            # Step 3: Analyze uniqueness of information
+            # Step 2: Analyze uniqueness of information
             decision = self.sentiment_analyzer.analyze_sentiment(
                 most_recent_tweet, 
                 historical_tweets
@@ -70,22 +67,22 @@ class SentimentAnalysisService:
         except Exception as e:
             return None, f"Error in analysis pipeline: {str(e)}"
 
-    def analyze_multiple_tokens(self, token_ids: List[str]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
+    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
         """
         Analyze multiple tokens sequentially.
         
         Args:
-            token_ids: List of token IDs to analyze
+            token_data: List of tuples containing (token_id, pair_id, twitter_handle)
             
         Returns:
             Dictionary mapping token IDs to their (decision, reason)
         """
         results = {}
         
-        for token_id in token_ids:
+        for token_id, pair_id, twitter_handle in token_data:
             try:
-                logger.info(f"Analyzing token: {token_id}")
-                decision, reason = self.analyze_token_sentiment(token_id)
+                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle})")
+                decision, reason = self.analyze_token_sentiment(token_id, twitter_handle)
                 results[token_id] = (decision, reason)
                 
                 if decision:
@@ -112,21 +109,21 @@ def main():
         # Fetch tokens from the database
         logger.info(f"Fetching {args.tokens} tokens from database...")
         try:
-            tokens = service.db_service.fetch_limited_tokens(limit=args.tokens)
-            logger.info(f"Database query completed. Tokens: {tokens}")
+            token_data = service.db_service.fetch_limited_tokens(limit=args.tokens)
+            logger.info(f"Database query completed. Found {len(token_data)} tokens")
         except Exception as db_error:
             logger.error(f"Error fetching tokens from database: {db_error}")
             return
         
-        if not tokens:
+        if not token_data:
             logger.error("No tokens found in the database")
             return
         
-        logger.info(f"Found {len(tokens)} tokens to analyze")
+        logger.info(f"Found {len(token_data)} tokens to analyze")
         
         # Analyze all tokens sequentially
         logger.info("Starting token analysis...")
-        results = service.analyze_multiple_tokens(tokens)
+        results = service.analyze_multiple_tokens(token_data)
         
         # Print results summary
         positive_count = sum(1 for decision, _ in results.values() if decision == "positive")

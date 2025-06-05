@@ -52,14 +52,6 @@ class DatabaseService:
             if connection:
                 connection.close()
 
-    def fetch_token_handle(self, token_id: str) -> Optional[str]:
-        query = """
-            SELECT twitter FROM token_leaderboard AS tl
-            WHERE is_coin = 0 AND is_cmc_listed = 1 AND token_id = %s
-        """
-        result = self.execute_query(query, (token_id,))
-        return result[0][0] if result and len(result) > 0 else None
-
     def fetch_recent_tweets(self, twitter_handle: str, limit: int = 10) -> Optional[List[str]]:
         """
         Fetch multiple recent tweets for a given Twitter handle.
@@ -81,7 +73,7 @@ class DatabaseService:
         result = self.execute_query(query, (twitter_handle, limit))
         return [row[0] for row in result] if result and len(result) > 0 else None
 
-    def fetch_limited_tokens(self, limit: int = 3) -> List[str]:
+    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str]]:
         """
         Fetch a limited number of tokens from the token_leaderboard table.
         
@@ -89,16 +81,17 @@ class DatabaseService:
             limit: Maximum number of tokens to fetch
             
         Returns:
-            List of token IDs
+            List of tuples containing (token_id, pair_id, twitter)
         """
         query = """
-            SELECT token_id 
+            SELECT token_id, pair_id, twitter
             FROM token_leaderboard 
             WHERE is_coin = 0 
             AND is_cmc_listed = 1 
             AND twitter IS NOT NULL 
+            AND pair_id IS NOT NULL
             ORDER BY RAND() 
             LIMIT %s
         """
         result = self.execute_query(query, (limit,))
-        return [row[0] for row in result] if result else []
+        return result if result else []

@@ -14,23 +14,21 @@ class SentimentAnalyzer:
         self, 
         recent_tweet: str, 
         historical_tweets: List[str],
-    ) -> Optional[Literal["buy", "fake"]]:
+    ) -> Optional[Literal["buy", "skip"]]:
         try:
-            # Combine all tweets for context
-            all_tweets = [recent_tweet] + historical_tweets
-            combined_tweets = "\n".join(all_tweets)
-
 
             prompt = (
-                "Analyze these tweets from a crypto project's official account and their recent price history. "
-                "The first tweet is the most recent, followed by older tweets.\n\n"
-                f"Tweets:\n{combined_tweets}\n\n"
-                "Task: Determine if the most recent tweet (first one) contains unique, new information "
-                "that could impact the token's price, or if it's just repeating old information. "
-                "Consider the price history context when making your decision.\n\n"
-                "Respond with exactly one word:\n"
-                "- 'buy' if the recent tweet contains unique, impactful information\n"
-                "- 'fake' if it's just repeating old information"
+                "You are a crypto market analyst. Analyze these tweets from a crypto project's official account.\n\n"
+                "Context:\n"
+                "- Focus on identifying unique, new information that could impact the token's price\n\n"
+                f"Most Recent Tweet:\n{recent_tweet}\n\n"
+                f"Historical Tweets:\n{chr(10).join(historical_tweets)}\n\n"
+                "Task: Determine if the most recent tweet contains unique, impactful information "
+                "that could affect the token's price, or if it's just repeating old information.\n\n"
+                "Respond with EXACTLY one word:\n"
+                "- 'buy' if the recent tweet contains unique, impactful information that could move the price\n"
+                "- 'skip' if it's just repeating old information or contains no significant news\n\n"
+                "Important: Only respond with 'buy' or 'skip', nothing else."
             )
 
             response = self.client.models.generate_content(
