@@ -24,13 +24,15 @@ class SentimentAnalysisService:
         self.db_service = DatabaseService(self.config.db)
         self.sentiment_analyzer = SentimentAnalyzer(self.config.gemini)
 
-    def analyze_token_sentiment(self, token_id: str, twitter_handle: str) -> tuple[Optional[str], Optional[str]]:
+    def analyze_token_sentiment(self, token_id: str, twitter_handle: str, pair_id: str, chain: str) -> tuple[Optional[str], Optional[str]]:
         """
-        Analyze a token's tweets to determine if the recent tweet contains unique information.
+        Analyze a token's tweets and price data to determine if the recent tweet contains unique information.
         
         Args:
             token_id: The ID of the token to analyze
             twitter_handle: The Twitter handle associated with the token
+            pair_id: The pair ID for fetching price data
+            chain: The blockchain network the token is on
             
         Returns:
             Tuple of (decision, reason)
@@ -41,7 +43,7 @@ class SentimentAnalysisService:
             if not twitter_handle:
                 return None, "No Twitter handle found for token"
 
-            # Step 1: Fetch recent tweets (most recent + 20 historical)
+            # Step 1: Fetch recent tweets
             recent_tweets = self.db_service.fetch_recent_tweets(twitter_handle, limit=21)
             if not recent_tweets:
                 return None, f"No recent tweets found for Twitter handle: {twitter_handle}"
@@ -50,7 +52,7 @@ class SentimentAnalysisService:
             most_recent_tweet = recent_tweets[0]
             historical_tweets = recent_tweets[1:]
 
-            # Step 2: Analyze uniqueness of information
+            # Step 3: Analyze uniqueness of information with price context
             decision = self.sentiment_analyzer.analyze_sentiment(
                 most_recent_tweet, 
                 historical_tweets
@@ -67,22 +69,22 @@ class SentimentAnalysisService:
         except Exception as e:
             return None, f"Error in analysis pipeline: {str(e)}"
 
-    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
+    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str, str]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
         """
         Analyze multiple tokens sequentially.
         
         Args:
-            token_data: List of tuples containing (token_id, pair_id, twitter_handle)
+            token_data: List of tuples containing (token_id, pair_id, twitter_handle, chain)
             
         Returns:
             Dictionary mapping token IDs to their (decision, reason)
         """
         results = {}
         
-        for token_id, pair_id, twitter_handle in token_data:
+        for token_id, pair_id, twitter_handle, chain in token_data:
             try:
-                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle})")
-                decision, reason = self.analyze_token_sentiment(token_id, twitter_handle)
+                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle}, chain: {chain})")
+                decision, reason = self.analyze_token_sentiment(token_id, twitter_handle, pair_id, chain)
                 results[token_id] = (decision, reason)
                 
                 if decision:

@@ -73,7 +73,7 @@ class DatabaseService:
         result = self.execute_query(query, (twitter_handle, limit))
         return [row[0] for row in result] if result and len(result) > 0 else None
 
-    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str]]:
+    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str, str]]:
         """
         Fetch a limited number of tokens from the token_leaderboard table.
         
@@ -81,15 +81,16 @@ class DatabaseService:
             limit: Maximum number of tokens to fetch
             
         Returns:
-            List of tuples containing (token_id, pair_id, twitter)
+            List of tuples containing (token_id, pair_id, twitter, chain)
         """
         query = """
-            SELECT token_id, pair_id, twitter
+            SELECT token_id, pair_id, twitter, chain
             FROM token_leaderboard 
             WHERE is_coin = 0 
             AND is_cmc_listed = 1 
             AND twitter IS NOT NULL 
             AND pair_id IS NOT NULL
+            AND chain IS NOT NULL
             ORDER BY RAND() 
             LIMIT %s
         """
