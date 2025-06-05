@@ -16,12 +16,17 @@ class DatabaseConfig:
 @dataclass
 class GeminiConfig:
     api_key: str
-    model_name: str = "gemini-2.0-flash"
+    model_name: str = "gemini-1.5-flash"
+
+@dataclass
+class GeckoTerminalConfig:
+    base_url: str = "https://api.geckoterminal.com/api/v2"
 
 @dataclass
 class Config:
     db: DatabaseConfig
     gemini: GeminiConfig
+    gecko_terminal: GeckoTerminalConfig
 
     @classmethod
     def from_env(cls) -> 'Config':
@@ -35,5 +40,8 @@ class Config:
             ),
             gemini=GeminiConfig(
                 api_key=os.getenv('GEMINI_API_KEY', '')
+            ),
+            gecko_terminal=GeckoTerminalConfig(
+                base_url=os.getenv('GECKO_TERMINAL_API_URL', 'https://api.geckoterminal.com/api/v2')
             )
         ) 

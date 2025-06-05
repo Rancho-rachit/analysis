@@ -4,6 +4,7 @@ import argparse
 from services.config import Config
 from services.database import DatabaseService
 from services.gemini import SentimentAnalyzer
+from services.fetch_ohlcv import OHLCVService
 
 # Configure logging
 logging.basicConfig(
@@ -15,7 +16,6 @@ logging.basicConfig(
 logging.getLogger('google.genai.models').setLevel(logging.WARNING)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 
-
 logger = logging.getLogger(__name__)
 
 class SentimentAnalysisService:
@@ -23,6 +23,7 @@ class SentimentAnalysisService:
         self.config = Config.from_env()
         self.db_service = DatabaseService(self.config.db)
         self.sentiment_analyzer = SentimentAnalyzer(self.config.gemini)
+        self.ohlcv_service = OHLCVService(self.config.gecko_terminal)
 
     def analyze_token_sentiment(self, token_id: str, twitter_handle: str, pair_id: str, chain: str) -> tuple[Optional[str], Optional[str]]:
         """
@@ -48,6 +49,11 @@ class SentimentAnalysisService:
             if not recent_tweets:
                 return None, f"No recent tweets found for Twitter handle: {twitter_handle}"
 
+            # Step 2: Fetch OHLCV data
+            ohlcv_data = self.ohlcv_service.fetch_ohlcv(chain, pair_id)
+            if not ohlcv_data:
+                logger.warning(f"Could not fetch OHLCV data for token {token_id}")
+
             # Separate most recent tweet from historical tweets
             most_recent_tweet = recent_tweets[0]
             historical_tweets = recent_tweets[1:]
@@ -55,7 +61,8 @@ class SentimentAnalysisService:
             # Step 3: Analyze uniqueness of information with price context
             decision = self.sentiment_analyzer.analyze_sentiment(
                 most_recent_tweet, 
-                historical_tweets
+                historical_tweets,
+                ohlcv_data
             )
             if not decision:
                 return None, "Failed to generate sentiment analysis"
