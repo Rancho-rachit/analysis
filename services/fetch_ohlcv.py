@@ -11,7 +11,7 @@ class OHLCVService:
         self.config = config
         logger.info(f"Initialized OHLCVService with base URL: {config.base_url}")
 
-    def fetch_ohlcv(self, chain: str, pair_id: str) -> Optional[List[Dict[str, Any]]]:
+    def fetch_ohlcv(self,tweet_create_time: datetime, chain: str, pair_id: str) -> Optional[List[Dict[str, Any]]]:
         """
         Fetch OHLCV data for a given pair on a specific chain.
         
@@ -23,7 +23,7 @@ class OHLCVService:
             List of OHLCV data points or None if the request fails
         """
         try:
-            current_epoch = int(datetime.now().timestamp())
+            current_epoch = int(tweet_create_time.timestamp())
             logger.info(f"Fetching OHLCV data for chain: {chain}, pair: {pair_id}")
 
 

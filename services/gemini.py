@@ -2,6 +2,8 @@ from google import genai
 from typing import Optional, Literal, List, Dict, Any
 from .config import GeminiConfig
 import logging
+import json
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,8 +14,7 @@ class SentimentAnalyzer:
 
     def analyze_sentiment(
         self, 
-        recent_tweet: str, 
-        historical_tweets: List[str],
+        tweets_data: Dict[str, Any],
         ohlcv_data: Optional[List[Dict[str, Any]]] = None
     ) -> Optional[Literal["buy", "skip"]]:
         try:
@@ -32,24 +33,28 @@ class SentimentAnalyzer:
                             price_changes.append(f"Time: {timestamp}, Price: ${float(close_price):.8f}")
                     price_context = "\n".join(price_changes)
 
+            # Format the tweets data for the prompt
+            tweets_json = json.dumps(tweets_data, indent=2)
+
             prompt = (
-                "You are a crypto market analyst. Analyze these tweets from a crypto project's official account.\n\n"
+                "You are a crypto market analyst. Analyze the tweet data from a crypto project's official account.\n\n"
                 "Context:\n"
                 "- Focus on identifying unique, new information that could impact the token's price\n"
-                f"Most Recent Tweet:\n{recent_tweet}\n\n"
-                f"Historical Tweets:\n{chr(10).join(historical_tweets)}\n\n"
+                "- The data contains the most recent tweet and historical tweets with timestamps\n\n"
+                f"Tweet Data (JSON):\n{tweets_json}\n\n"
             )
 
             if price_context:
                 prompt += f"Recent Price Data (last 10 days):\n{price_context}\n\n"
 
             prompt += (
-                "Task: Determine if the most recent tweet contains unique, impactful information "
-                "that could affect the token's price, or if it's just repeating old information.\n\n"
+                "Task: Analyze the most recent tweet (in 'recent_tweet') compared to historical tweets (in 'past_tweets') "
+                "to determine if it contains unique, impactful information that could affect the token's price.\n\n"
                 "Consider:\n"
-                "1. Is this new information or a repeat of previous announcements?\n"
+                "1. Is the recent tweet's content new information or a repeat of previous announcements?\n"
                 "2. Does it have potential to impact the token's price?\n"
-                "3. How does it relate to recent price movements?\n\n"
+                "3. How does the timing relate to recent price movements?\n"
+                "4. Compare the tweet content and timestamps to identify patterns or uniqueness\n\n"
                 "Respond with EXACTLY one word:\n"
                 "- 'buy' if the recent tweet contains unique, impactful information that could move the price\n"
                 "- 'skip' if it's just repeating old information or contains no significant news\n\n"
@@ -61,6 +66,7 @@ class SentimentAnalyzer:
                 contents=prompt
             )
             
+            print(prompt)
             # Process response
             decision = response.text.strip().lower()
             if decision not in ['buy', 'skip']:

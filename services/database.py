@@ -2,6 +2,7 @@ from typing import Optional, List, Any, Dict
 from mysql.connector import pooling
 from mysql.connector.errors import Error as MySQLError
 from .config import DatabaseConfig
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,6 @@ class DatabaseService:
                 "port": self.config.port,
                 "user": self.config.user,
                 "password": self.config.password,
-                "database": self.config.database
             }
             return pooling.MySQLConnectionPool(**pool_config)
         except MySQLError as e:
@@ -64,14 +64,35 @@ class DatabaseService:
             List of tweet texts or None if no tweets found
         """
         query = """
-            SELECT body
-            FROM enhanced_tweets
+            SELECT tweet_id, body, tweet_create_time, author_handle
+            FROM twitter.enhanced_tweets
             WHERE author_handle = %s
             ORDER BY tweet_create_time DESC
             LIMIT %s
         """
         result = self.execute_query(query, (twitter_handle, limit))
-        return [row[0] for row in result] if result and len(result) > 0 else None
+
+        if not result or len(result) == 0:
+            return None
+
+        tweet_dict = {
+            "recent_tweet": {
+                "tweet_id": result[0][0],
+                "body": result[0][1],
+                "tweet_create_time": result[0][2].strftime("%Y-%m-%d %H:%M:%S"),
+                "author_handle": result[0][3]
+            },
+            "past_tweets": [
+                {
+                    "tweet_id": t[0],
+                    "body": t[1],
+                    "tweet_create_time": t[2].strftime("%Y-%m-%d %H:%M:%S"),
+                    "author_handle": t[3]
+                } for t in result[1:]
+            ]
+        }
+
+        return tweet_dict
 
     def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str, str]]:
         """
@@ -85,13 +106,30 @@ class DatabaseService:
         """
         query = """
             SELECT token_id, pair_id, twitter, chain
-            FROM token_leaderboard 
-            WHERE is_coin = 0 
-            AND is_cmc_listed = 1 
-            AND twitter IS NOT NULL 
-            AND pair_id IS NOT NULL
-            AND chain IS NOT NULL
-            ORDER BY RAND() 
+            FROM twitter.token_leaderboard AS tlb
+            WHERE tlb.is_coin = 0 
+            AND tlb.is_cmc_listed = 1 
+            AND tlb.twitter IS NOT NULL 
+            AND tlb.pair_id IS NOT NULL
+            AND tlb.chain IS NOT NULL
+            AND tlb.best_symbol_rank = 1
+            AND tlb.is_coinbase IS NULL
+            AND tlb.is_gateio IS NULL
+            AND tlb.is_bingx IS NULL
+            AND tlb.is_mexc IS NULL
+            AND tlb.is_okx IS NULL
+            AND tlb.is_binance IS NULL
+            AND tlb.is_bybit IS NULL
+            AND tlb.is_kucoin IS NULL
+            AND tlb.is_bitget IS NULL
+            AND tlb.is_bitmart IS NULL
+            AND tlb.marketcap < 100000000000
+            AND tlb.name NOT LIKE '%WRAPPED%'
+            AND tlb.symbol NOT LIKE '%USD%'
+            AND tlb.symbol NOT LIKE '%ETH%'
+            AND tlb.symbol NOT LIKE '%BTC%'
+            AND tlb.chain != 'pulsechain'
+            ORDER BY RAND()
             LIMIT %s
         """
         result = self.execute_query(query, (limit,))

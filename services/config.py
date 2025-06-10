@@ -20,6 +20,7 @@ class GeminiConfig:
 
 @dataclass
 class GeckoTerminalConfig:
+    tweet_create_time: str
     base_url: str = "https://api.geckoterminal.com/api/v2"
 
 @dataclass
@@ -36,7 +37,7 @@ class Config:
                 port=int(os.getenv('DB_PORT', '3306')),
                 user=os.getenv('DB_USER', 'root'),
                 password=os.getenv('DB_PASSWORD', ''),
-                database=os.getenv('DB_NAME', 'analysis')
+                database=os.getenv('DB_NAME', '')
             ),
             gemini=GeminiConfig(
                 api_key=os.getenv('GEMINI_API_KEY', '')
@@ -44,4 +45,4 @@ class Config:
             gecko_terminal=GeckoTerminalConfig(
                 base_url=os.getenv('GECKO_TERMINAL_API_URL', 'https://api.geckoterminal.com/api/v2')
             )
-        ) 
+        )

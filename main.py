@@ -5,6 +5,8 @@ from services.config import Config
 from services.database import DatabaseService
 from services.gemini import SentimentAnalyzer
 from services.fetch_ohlcv import OHLCVService
+from datetime import datetime
+
 
 # Configure logging
 logging.basicConfig(
@@ -45,23 +47,22 @@ class SentimentAnalysisService:
                 return None, "No Twitter handle found for token"
 
             # Step 1: Fetch recent tweets
-            recent_tweets = self.db_service.fetch_recent_tweets(twitter_handle, limit=21)
-            if not recent_tweets:
+            tweets_data = self.db_service.fetch_recent_tweets(twitter_handle, limit=21)
+            if not tweets_data:
                 return None, f"No recent tweets found for Twitter handle: {twitter_handle}"
 
-            # Step 2: Fetch OHLCV data
-            ohlcv_data = self.ohlcv_service.fetch_ohlcv(chain, pair_id)
+            # Extract tweet timestamp for OHLCV data
+            tweet_timestamp = tweets_data["recent_tweet"]["tweet_create_time"]
+
+            # Step 2: Fetch OHLCV data (convert string timestamp to datetime)
+            tweet_datetime = datetime.strptime(tweet_timestamp, "%Y-%m-%d %H:%M:%S")
+            ohlcv_data = self.ohlcv_service.fetch_ohlcv(tweet_datetime, chain, pair_id)
             if not ohlcv_data:
                 logger.warning(f"Could not fetch OHLCV data for token {token_id}")
 
-            # Separate most recent tweet from historical tweets
-            most_recent_tweet = recent_tweets[0]
-            historical_tweets = recent_tweets[1:]
-
             # Step 3: Analyze uniqueness of information with price context
             decision = self.sentiment_analyzer.analyze_sentiment(
-                most_recent_tweet, 
-                historical_tweets,
+                tweets_data,
                 ohlcv_data
             )
             if not decision:
