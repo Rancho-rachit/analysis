@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class DatabaseService:
     def __init__(self, config: DatabaseConfig):
         self.config = config
@@ -52,14 +53,16 @@ class DatabaseService:
             if connection:
                 connection.close()
 
-    def fetch_recent_tweets(self, twitter_handle: str, limit: int = 10) -> Optional[List[str]]:
+    def fetch_recent_tweets(
+        self, twitter_handle: str, limit: int = 10
+    ) -> Optional[List[str]]:
         """
         Fetch multiple recent tweets for a given Twitter handle.
-        
+
         Args:
             twitter_handle: The Twitter handle to fetch tweets for
             limit: Number of tweets to fetch (default: 10)
-            
+
         Returns:
             List of tweet texts or None if no tweets found
         """
@@ -80,27 +83,30 @@ class DatabaseService:
                 "tweet_id": result[0][0],
                 "body": result[0][1],
                 "tweet_create_time": result[0][2].strftime("%Y-%m-%d %H:%M:%S"),
-                "author_handle": result[0][3]
+                "author_handle": result[0][3],
             },
             "past_tweets": [
                 {
                     "tweet_id": t[0],
                     "body": t[1],
                     "tweet_create_time": t[2].strftime("%Y-%m-%d %H:%M:%S"),
-                    "author_handle": t[3]
-                } for t in result[1:]
-            ]
+                    "author_handle": t[3],
+                }
+                for t in result[1:]
+            ],
         }
 
         return tweet_dict
 
-    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str, str, float, float]]:
+    def fetch_limited_tokens(
+        self, limit: int = 3
+    ) -> List[tuple[str, str, str, str, float, float]]:
         """
         Fetch a limited number of tokens from the token_leaderboard table.
-        
+
         Args:
             limit: Maximum number of tokens to fetch
-            
+
         Returns:
             List of tuples containing (token_id, pair_id, twitter, chain, marketcap, volume_24hrs)
         """

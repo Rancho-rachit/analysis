@@ -10,15 +10,15 @@ from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # Suppress specific logging
-logging.getLogger('google.genai.models').setLevel(logging.WARNING)
-logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger("google.genai.models").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+
 
 class SentimentAnalysisService:
     def __init__(self):
@@ -27,16 +27,18 @@ class SentimentAnalysisService:
         self.sentiment_analyzer = SentimentAnalyzer(self.config.gemini)
         self.ohlcv_service = OHLCVService(self.config.gecko_terminal)
 
-    def analyze_token_sentiment(self, token_id: str, twitter_handle: str, pair_id: str, chain: str) -> tuple[Optional[str], Optional[str]]:
+    def analyze_token_sentiment(
+        self, token_id: str, twitter_handle: str, pair_id: str, chain: str
+    ) -> tuple[Optional[str], Optional[str]]:
         """
         Analyze a token's tweets and price data to determine if the recent tweet contains unique information.
-        
+
         Args:
             token_id: The ID of the token to analyze
             twitter_handle: The Twitter handle associated with the token
             pair_id: The pair ID for fetching price data
             chain: The blockchain network the token is on
-            
+
         Returns:
             Tuple of (decision, reason)
             decision: 'positive', 'negative', or None
@@ -49,7 +51,10 @@ class SentimentAnalysisService:
             # Step 1: Fetch recent tweets
             tweets_data = self.db_service.fetch_recent_tweets(twitter_handle, limit=21)
             if not tweets_data:
-                return None, f"No recent tweets found for Twitter handle: {twitter_handle}"
+                return (
+                    None,
+                    f"No recent tweets found for Twitter handle: {twitter_handle}",
+                )
 
             # Extract tweet timestamp for OHLCV data
             tweet_timestamp = tweets_data["recent_tweet"]["tweet_create_time"]
@@ -62,8 +67,7 @@ class SentimentAnalysisService:
 
             # Step 3: Analyze uniqueness of information with price context
             decision = self.sentiment_analyzer.analyze_sentiment(
-                tweets_data,
-                ohlcv_data
+                tweets_data, ohlcv_data
             )
             if not decision:
                 return None, "Failed to generate sentiment analysis"
@@ -72,15 +76,20 @@ class SentimentAnalysisService:
             if decision == "buy":
                 return "positive", "Recent tweet contains unique, impactful information"
             else:
-                return "negative", "Recent tweet contains repetitive or non-significant information"
+                return (
+                    "negative",
+                    "Recent tweet contains repetitive or non-significant information",
+                )
 
         except Exception as e:
             return None, f"Error in analysis pipeline: {str(e)}"
 
-    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str, str, float, float]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
+    def analyze_multiple_tokens(
+        self, token_data: List[tuple[str, str, str, str, float, float]]
+    ) -> Dict[str, tuple[Optional[str], Optional[str]]]:
         """
         Analyze multiple tokens sequentially.
-        
+
         Args:
             token_data: List of tuples containing (token_id, pair_id, twitter_handle, chain, marketcap, volume_24hrs)
 
@@ -89,27 +98,43 @@ class SentimentAnalysisService:
         """
         results = {}
 
-        for token_id, pair_id, twitter_handle, chain, marketcap, volume_24hrs in token_data:
+        for (
+            token_id,
+            pair_id,
+            twitter_handle,
+            chain,
+            marketcap,
+            volume_24hrs,
+        ) in token_data:
             try:
-                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle}, chain: {chain}), Market Cap: {marketcap}, Volume 24hrs: {volume_24hrs}")
-                decision, reason = self.analyze_token_sentiment(token_id, twitter_handle, pair_id, chain)
+                logger.info(
+                    f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle}, chain: {chain}), Market Cap: {marketcap}, Volume 24hrs: {volume_24hrs}"
+                )
+                decision, reason = self.analyze_token_sentiment(
+                    token_id, twitter_handle, pair_id, chain
+                )
                 results[token_id] = (decision, reason)
-                
+
                 if decision:
                     logger.info(f"Token {token_id}: {decision.upper()} - {reason}")
                 else:
                     logger.warning(f"Token {token_id}: FAIL - {reason}")
-                    
+
             except Exception as e:
                 logger.error(f"Error processing token {token_id}: {e}")
                 results[token_id] = (None, f"Unexpected error: {str(e)}")
-        
+
         return results
-    
+
+
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Analyze token sentiment based on tweets')
-    parser.add_argument('--tokens', type=int, default=3, help='Number of tokens to analyze (default: 3)')
+    parser = argparse.ArgumentParser(
+        description="Analyze token sentiment based on tweets"
+    )
+    parser.add_argument(
+        "--tokens", type=int, default=3, help="Number of tokens to analyze (default: 3)"
+    )
     args = parser.parse_args()
 
     try:
@@ -136,8 +161,12 @@ def main():
         results = service.analyze_multiple_tokens(token_data)
 
         # Print results summary
-        positive_count = sum(1 for decision, _ in results.values() if decision == "positive")
-        negative_count = sum(1 for decision, _ in results.values() if decision == "negative")
+        positive_count = sum(
+            1 for decision, _ in results.values() if decision == "positive"
+        )
+        negative_count = sum(
+            1 for decision, _ in results.values() if decision == "negative"
+        )
         fail_count = sum(1 for decision, _ in results.values() if decision is None)
 
         logger.info("\nAnalysis Summary:")

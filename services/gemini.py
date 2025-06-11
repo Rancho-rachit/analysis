@@ -7,30 +7,37 @@ import json
 
 logger = logging.getLogger(__name__)
 
+
 class SentimentAnalyzer:
     def __init__(self, config: GeminiConfig):
         self.config = config
         self.client = genai.Client(api_key=config.api_key)
 
     def analyze_sentiment(
-        self, 
+        self,
         tweets_data: Dict[str, Any],
-        ohlcv_data: Optional[List[Dict[str, Any]]] = None
+        ohlcv_data: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Literal["buy", "skip"]]:
         try:
             # Format OHLCV data if available
             price_context = ""
-            if ohlcv_data and isinstance(ohlcv_data, dict) and 'data' in ohlcv_data:
-                ohlcv_list = ohlcv_data['data'].get('attributes', {}).get('ohlcv_list', [])
+            if ohlcv_data and isinstance(ohlcv_data, dict) and "data" in ohlcv_data:
+                ohlcv_list = (
+                    ohlcv_data["data"].get("attributes", {}).get("ohlcv_list", [])
+                )
                 if ohlcv_list:
                     # Get the last 24 hours of data
-                    recent_prices = ohlcv_list[-24:] if len(ohlcv_list) > 24 else ohlcv_list
+                    recent_prices = (
+                        ohlcv_list[-24:] if len(ohlcv_list) > 24 else ohlcv_list
+                    )
                     price_changes = []
                     for data in recent_prices:
                         if isinstance(data, list) and len(data) >= 5:
                             timestamp = data[0]  # Unix timestamp
                             close_price = data[4]  # Close price
-                            price_changes.append(f"Time: {timestamp}, Price: ${float(close_price):.8f}")
+                            price_changes.append(
+                                f"Time: {timestamp}, Price: ${float(close_price):.8f}"
+                            )
                     price_context = "\n".join(price_changes)
 
             # Format the tweets data for the prompt
@@ -62,18 +69,17 @@ class SentimentAnalyzer:
             )
 
             response = self.client.models.generate_content(
-                model=self.config.model_name,
-                contents=prompt
+                model=self.config.model_name, contents=prompt
             )
-            
+
             print(prompt)
-            print('GEMINI RESPONSE:', response.text)
+            print("GEMINI RESPONSE:", response.text)
             # Process response
             decision = response.text.strip().lower()
-            if decision not in ['buy', 'skip']:
+            if decision not in ["buy", "skip"]:
                 logger.warning(f"Unexpected response from model: {decision}")
                 return None
-                
+
             return decision
 
         except Exception as e:
