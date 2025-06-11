@@ -1,8 +1,7 @@
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from mysql.connector import pooling
 from mysql.connector.errors import Error as MySQLError
 from .config import DatabaseConfig
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
