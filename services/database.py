@@ -94,7 +94,7 @@ class DatabaseService:
 
         return tweet_dict
 
-    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str, str]]:
+    def fetch_limited_tokens(self, limit: int = 3) -> List[tuple[str, str, str, str, float, float]]:
         """
         Fetch a limited number of tokens from the token_leaderboard table.
         
@@ -102,10 +102,10 @@ class DatabaseService:
             limit: Maximum number of tokens to fetch
             
         Returns:
-            List of tuples containing (token_id, pair_id, twitter, chain)
+            List of tuples containing (token_id, pair_id, twitter, chain, marketcap, volume_24hrs)
         """
         query = """
-            SELECT token_id, pair_id, twitter, chain
+            SELECT token_id, pair_id, twitter, chain, marketcap, volume_24hr
             FROM twitter.token_leaderboard AS tlb
             WHERE tlb.is_coin = 0 
             AND tlb.is_cmc_listed = 1 

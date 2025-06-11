@@ -20,7 +20,6 @@ class GeminiConfig:
 
 @dataclass
 class GeckoTerminalConfig:
-    tweet_create_time: str
     base_url: str = "https://api.geckoterminal.com/api/v2"
 
 @dataclass

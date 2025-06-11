@@ -77,21 +77,21 @@ class SentimentAnalysisService:
         except Exception as e:
             return None, f"Error in analysis pipeline: {str(e)}"
 
-    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str, str]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
+    def analyze_multiple_tokens(self, token_data: List[tuple[str, str, str, str, float, float]]) -> Dict[str, tuple[Optional[str], Optional[str]]]:
         """
         Analyze multiple tokens sequentially.
         
         Args:
-            token_data: List of tuples containing (token_id, pair_id, twitter_handle, chain)
-            
+            token_data: List of tuples containing (token_id, pair_id, twitter_handle, chain, marketcap, volume_24hrs)
+
         Returns:
             Dictionary mapping token IDs to their (decision, reason)
         """
         results = {}
-        
-        for token_id, pair_id, twitter_handle, chain in token_data:
+
+        for token_id, pair_id, twitter_handle, chain, marketcap, volume_24hrs in token_data:
             try:
-                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle}, chain: {chain})")
+                logger.info(f"Analyzing token: {token_id} (pair: {pair_id}, twitter: {twitter_handle}, chain: {chain}), Market Cap: {marketcap}, Volume 24hrs: {volume_24hrs}")
                 decision, reason = self.analyze_token_sentiment(token_id, twitter_handle, pair_id, chain)
                 results[token_id] = (decision, reason)
                 
