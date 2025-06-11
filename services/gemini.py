@@ -67,6 +67,7 @@ class SentimentAnalyzer:
             )
             
             print(prompt)
+            print('GEMINI RESPONSE:', response.text)
             # Process response
             decision = response.text.strip().lower()
             if decision not in ['buy', 'skip']:
