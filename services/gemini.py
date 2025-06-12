@@ -16,25 +16,9 @@ class SentimentAnalyzer:
     def analyze_sentiment(
         self,
         tweets_data: Dict[str, Any],
-        ohlcv_data: Optional[List[Dict[str, Any]]] = None,
-    ) -> Optional[Literal["positive", "negative"]]:
+        ohlcv_data: Optional[List[List[Any]]] = None,
+    ) -> Optional[tuple[Literal["positive", "negative"], str]]:
         try:
-            # Format OHLCV data if available
-            price_context = ""
-            if ohlcv_data and isinstance(ohlcv_data, dict) and "data" in ohlcv_data:
-                ohlcv_list = (
-                    ohlcv_data["data"].get("attributes", {}).get("ohlcv_list", [])
-                )
-                if ohlcv_list:
-                    price_changes = []
-                    for data in ohlcv_list:
-                        if isinstance(data, list) and len(data) >= 5:
-                            timestamp = data[0]  # Unix timestamp
-                            close_price = data[4]  # Close price
-                            price_changes.append(
-                                f"Time: {timestamp}, Price: ${float(close_price):.8f}"
-                            )
-                    price_context = "\n".join(price_changes)
 
             # Format the tweets data for the prompt
             tweets_json = json.dumps(tweets_data, indent=2)
@@ -46,6 +30,18 @@ class SentimentAnalyzer:
                 "- The data contains the most recent tweet and historical tweets with timestamps\n\n"
                 f"Tweet Data (JSON):\n{tweets_json}\n\n"
             )
+
+            if ohlcv_data:
+                # Format OHLCV data as user-friendly JSON
+                price_data = []
+                for entry in ohlcv_data:
+                    if isinstance(entry, list) and len(entry) >= 2:
+                        price_data.append(
+                            {"timestamp": entry[0], "price": f"${entry[1]:.8f}"}
+                        )
+
+                price_json = json.dumps(price_data, indent=2)
+                prompt += f"Recent Price Data (last 10 days):\n{price_json}\n\n"
 
             prompt += (
                 "Task: Analyze the most recent tweet (in 'recent_tweet') compared to historical tweets (in 'past_tweets') "
@@ -61,23 +57,22 @@ class SentimentAnalyzer:
                 "Important: Only respond with 'positive' or 'negative', nothing else."
             )
 
-            if price_context:
-                prompt += f"Recent Price Data (last 10 days):\n{price_context}\n\n"
+            print(prompt)
 
             response = self.client.models.generate_content(
                 model=self.config.model_name, contents=prompt
             )
 
-            print(prompt)
-            print("GEMINI RESPONSE:", response.text)
             # Process response
             decision = response.text.strip().lower()
             if decision not in ["positive", "negative"]:
                 logger.warning(f"Unexpected response from model: {decision}")
-                return None
+                return None, f"Unexpected model response: {decision}"
 
-            return decision
+            print("GEMINI RESPONSE:", response.text)
+
+            return decision, "Analysis completed successfully"
 
         except Exception as e:
             logger.error(f"Error in sentiment analysis: {e}")
-            return None
+            return None, f"Error in sentiment analysis: {str(e)}"

@@ -2,21 +2,22 @@ from typing import Optional, List, Any
 from mysql.connector import pooling
 from mysql.connector.errors import Error as MySQLError
 from .config import DatabaseConfig
+from .constants import FETCH_RECENT_TWEETS_QUERY, FETCH_LIMITED_TOKENS_QUERY
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    def __init__(self, config: DatabaseConfig):
+    def __init__(self, config: DatabaseConfig, pool_size: int = 5):
         self.config = config
-        self.pool = self._create_connection_pool()
+        self.pool = self._create_connection_pool(pool_size)
 
-    def _create_connection_pool(self) -> pooling.MySQLConnectionPool:
+    def _create_connection_pool(self, pool_size: int) -> pooling.MySQLConnectionPool:
         try:
             pool_config = {
                 "pool_name": "mypool",
-                "pool_size": 5,
+                "pool_size": pool_size,
                 "host": self.config.host,
                 "port": self.config.port,
                 "user": self.config.user,
@@ -27,7 +28,7 @@ class DatabaseService:
             logger.error(f"Failed to create connection pool: {e}")
             raise
 
-    def get_connection(self):
+    def _get_connection(self):
         try:
             return self.pool.get_connection()
         except MySQLError as e:
@@ -38,7 +39,7 @@ class DatabaseService:
         connection = None
         cursor = None
         try:
-            connection = self.get_connection()
+            connection = self._get_connection()
             cursor = connection.cursor()
             cursor.execute(query, params or ())
             result = cursor.fetchall()
@@ -65,13 +66,7 @@ class DatabaseService:
         Returns:
             List of tweet texts or None if no tweets found
         """
-        query = """
-            SELECT tweet_id, body, tweet_create_time, author_handle
-            FROM twitter.enhanced_tweets
-            WHERE author_handle = %s
-            ORDER BY tweet_create_time DESC
-            LIMIT %s
-        """
+        query = FETCH_RECENT_TWEETS_QUERY
         result = self.execute_query(query, (twitter_handle, limit))
 
         if not result or len(result) == 0:
@@ -109,33 +104,6 @@ class DatabaseService:
         Returns:
             List of tuples containing (token_id, pair_id, twitter, chain, marketcap, volume_24hrs)
         """
-        query = """
-            SELECT token_id, pair_id, twitter, chain, marketcap, volume_24hr
-            FROM twitter.token_leaderboard AS tlb
-            WHERE tlb.is_coin = 0 
-            AND tlb.is_cmc_listed = 1 
-            AND tlb.twitter IS NOT NULL 
-            AND tlb.pair_id IS NOT NULL
-            AND tlb.chain IS NOT NULL
-            AND tlb.best_symbol_rank = 1
-            AND tlb.is_coinbase IS NULL
-            AND tlb.is_gateio IS NULL
-            AND tlb.is_bingx IS NULL
-            AND tlb.is_mexc IS NULL
-            AND tlb.is_okx IS NULL
-            AND tlb.is_binance IS NULL
-            AND tlb.is_bybit IS NULL
-            AND tlb.is_kucoin IS NULL
-            AND tlb.is_bitget IS NULL
-            AND tlb.is_bitmart IS NULL
-            AND tlb.marketcap < 100000000000
-            AND tlb.name NOT LIKE '%WRAPPED%'
-            AND tlb.symbol NOT LIKE '%USD%'
-            AND tlb.symbol NOT LIKE '%ETH%'
-            AND tlb.symbol NOT LIKE '%BTC%'
-            AND tlb.chain != 'pulsechain'
-            ORDER BY RAND()
-            LIMIT %s
-        """
+        query = FETCH_LIMITED_TOKENS_QUERY
         result = self.execute_query(query, (limit,))
         return result if result else []

@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 class OHLCVService:
     def __init__(self, config: GeckoTerminalConfig):
         self.config = config
-        logger.info(f"Initialized OHLCVService with base URL: {config.base_url}")
 
     def fetch_ohlcv(
         self, tweet_create_time: datetime, chain: str, pair_id: str
@@ -40,27 +39,16 @@ class OHLCVService:
                 api_chain = "avax"
 
             url = f"{self.config.base_url}/networks/{api_chain}/pools/{pair_id}/ohlcv/hour?aggregate=1&before_timestamp={current_epoch}&limit=240&currency=usd&include_empty_intervals=false"
-            logger.debug(f"Request URL: {url}")
 
             response = requests.get(url)
-            response.raise_for_status()  # Raise exception for bad status codes
+            response.raise_for_status()
 
             data = response.json()
 
-            # Log response details
-            if "data" in data and "attributes" in data["data"]:
-                ohlcv_list = data["data"]["attributes"].get("ohlcv_list", [])
-                logger.info(f"Successfully fetched {len(ohlcv_list)} OHLCV data points")
-                if ohlcv_list:
-                    latest_price = ohlcv_list[0][
-                        4
-                    ]  # Close price of the most recent data point
-                    logger.info(f"Latest price: ${float(latest_price):.8f}")
-            else:
-                logger.warning("Response data structure is not as expected")
-                logger.debug(f"Response data: {data}")
+            ohlcv_list = data["data"]["attributes"].get("ohlcv_list", [])
+            logger.info(f"Successfully fetched {len(ohlcv_list)} OHLCV data points")
 
-            return data
+            return ohlcv_list
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error while fetching OHLCV data: {e}")
@@ -69,4 +57,45 @@ class OHLCVService:
             return None
         except Exception as e:
             logger.error(f"Error fetching OHLCV data: {e}")
+            return None
+
+    def formatted_fetch_ohlcv(
+        self, tweet_create_time: datetime, chain: str, pair_id: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Format the OHLCV data to ensure timestamps are datetime objects and prices are floats.
+
+        Args:
+            tweet_create_time: The creation time of the tweet
+            chain: The blockchain network the token is on
+            pair_id: The pair ID for fetching price data
+
+        Returns:
+            List of formatted OHLCV data points or None if no valid data found
+        """
+
+        try:
+            ohlcv_list = self.fetch_ohlcv(tweet_create_time, chain, pair_id)
+
+            if not ohlcv_list:
+                logger.warning("No OHLCV data fetched")
+                return None
+
+            formatted_ohlcv = []
+            for entry in ohlcv_list:
+                if isinstance(entry, list) and len(entry) >= 5:
+                    # Create formatted entry with timestamp and close price
+                    time_str = datetime.fromtimestamp(entry[0]).strftime(
+                        "%Y-%m-%d %H:%M"
+                    )
+                    close_price = float(entry[4])
+                    new_entry = [time_str, close_price]
+                    formatted_ohlcv.append(new_entry)
+
+            if not formatted_ohlcv:
+                logger.warning("No valid OHLCV data found")
+                return None
+            return formatted_ohlcv
+        except Exception as e:
+            logger.error(f"Error formatting OHLCV data: {e}")
             return None
