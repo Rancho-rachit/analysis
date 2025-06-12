@@ -17,7 +17,7 @@ class SentimentAnalyzer:
         self,
         tweets_data: Dict[str, Any],
         ohlcv_data: Optional[List[Dict[str, Any]]] = None,
-    ) -> Optional[Literal["buy", "skip"]]:
+    ) -> Optional[Literal["positive", "negative"]]:
         try:
             # Format OHLCV data if available
             price_context = ""
@@ -26,12 +26,8 @@ class SentimentAnalyzer:
                     ohlcv_data["data"].get("attributes", {}).get("ohlcv_list", [])
                 )
                 if ohlcv_list:
-                    # Get the last 24 hours of data
-                    recent_prices = (
-                        ohlcv_list[-24:] if len(ohlcv_list) > 24 else ohlcv_list
-                    )
                     price_changes = []
-                    for data in recent_prices:
+                    for data in ohlcv_list:
                         if isinstance(data, list) and len(data) >= 5:
                             timestamp = data[0]  # Unix timestamp
                             close_price = data[4]  # Close price
@@ -51,9 +47,6 @@ class SentimentAnalyzer:
                 f"Tweet Data (JSON):\n{tweets_json}\n\n"
             )
 
-            if price_context:
-                prompt += f"Recent Price Data (last 10 days):\n{price_context}\n\n"
-
             prompt += (
                 "Task: Analyze the most recent tweet (in 'recent_tweet') compared to historical tweets (in 'past_tweets') "
                 "to determine if it contains unique, impactful information that could affect the token's price.\n\n"
@@ -63,10 +56,13 @@ class SentimentAnalyzer:
                 "3. How does the timing relate to recent price movements?\n"
                 "4. Compare the tweet content and timestamps to identify patterns or uniqueness\n\n"
                 "Respond with EXACTLY one word:\n"
-                "- 'buy' if the recent tweet contains unique, impactful information that could move the price\n"
-                "- 'skip' if it's just repeating old information or contains no significant news\n\n"
-                "Important: Only respond with 'buy' or 'skip', nothing else."
+                "- 'positive' if the recent tweet contains unique, impactful information that could move the price\n"
+                "- 'negative' if it's just repeating old information or contains no significant news\n\n"
+                "Important: Only respond with 'positive' or 'negative', nothing else."
             )
+
+            if price_context:
+                prompt += f"Recent Price Data (last 10 days):\n{price_context}\n\n"
 
             response = self.client.models.generate_content(
                 model=self.config.model_name, contents=prompt
@@ -76,7 +72,7 @@ class SentimentAnalyzer:
             print("GEMINI RESPONSE:", response.text)
             # Process response
             decision = response.text.strip().lower()
-            if decision not in ["buy", "skip"]:
+            if decision not in ["positive", "negative"]:
                 logger.warning(f"Unexpected response from model: {decision}")
                 return None
 

@@ -11,18 +11,17 @@ class DatabaseConfig:
     port: int
     user: str
     password: str
-    database: str
 
 
 @dataclass
 class GeminiConfig:
     api_key: str
-    model_name: str = "gemini-1.5-flash"
+    model_name: str = "gemini-2.0-flash"
 
 
 @dataclass
 class GeckoTerminalConfig:
-    base_url: str = "https://api.geckoterminal.com/api/v2"
+    base_url: str
 
 
 @dataclass
@@ -39,7 +38,6 @@ class Config:
                 port=int(os.getenv("DB_PORT", "3306")),
                 user=os.getenv("DB_USER", "root"),
                 password=os.getenv("DB_PASSWORD", ""),
-                database=os.getenv("DB_NAME", ""),
             ),
             gemini=GeminiConfig(api_key=os.getenv("GEMINI_API_KEY", "")),
             gecko_terminal=GeckoTerminalConfig(

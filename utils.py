@@ -40,9 +40,7 @@ class SentimentAnalysisService:
             chain: The blockchain network the token is on
 
         Returns:
-            Tuple of (decision, reason)
-            decision: 'positive', 'negative', or None
-            reason: Explanation for the decision or failure
+            decision: 'positive', 'negative' or None if analysis fails
         """
         try:
             if not twitter_handle:
