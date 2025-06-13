@@ -69,7 +69,8 @@ class DatabaseService:
         query = FETCH_RECENT_TWEETS_QUERY
         result = self.execute_query(query, (twitter_handle, limit))
 
-        if not result or len(result) == 0:
+        if not result or len(result) < 5:
+            logger.info(f"Insufficient tweets for {twitter_handle}: found {len(result) if result else 0} tweets, minimum 5 required")
             return None
 
         tweet_dict = {
