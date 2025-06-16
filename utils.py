@@ -1,6 +1,5 @@
 import logging
 from typing import Optional, List, Dict
-import argparse
 from services.config import Config
 from services.database import DatabaseService
 from services.gemini import SentimentAnalyzer
@@ -130,20 +129,9 @@ class SentimentAnalysisService:
         return results
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Analyze token sentiment based on tweets"
-    )
-    parser.add_argument(
-        "--tokens", type=int, default=3, help="Number of tokens to analyze (default: 3)"
-    )
-    return parser.parse_args()
-
-
-def fetch_tokens(service: SentimentAnalysisService, limit: int):
-    logger.info(f"Fetching {limit} tokens from database...")
+def fetch_tokens(service: SentimentAnalysisService):
     try:
-        token_data = service.db_service.fetch_limited_tokens(limit=limit)
+        token_data = service.db_service.fetch_active_tokens()
         logger.info(f"Database query completed. Found {len(token_data)} token/s")
         return token_data
     except Exception as db_error:
@@ -177,13 +165,12 @@ def print_detailed_results(results: Dict[str, tuple[Optional[str], Optional[str]
 
 
 def main():
-    args = parse_args()
 
     try:
         logger.info("Initializing SentimentAnalysisService...")
         service = SentimentAnalysisService()
 
-        token_data = fetch_tokens(service, args.tokens)
+        token_data = fetch_tokens(service)
         if not token_data:
             logger.error("No tokens found in the database")
             return

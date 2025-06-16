@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    def __init__(self, config: DatabaseConfig, pool_size: int = 5):
+    def __init__(self, config: DatabaseConfig, pool_size: int = 1):
         self.config = config
         self.pool = self._create_connection_pool(pool_size)
 
@@ -93,18 +93,15 @@ class DatabaseService:
 
         return tweet_dict
 
-    def fetch_limited_tokens(
-        self, limit: int = 3
+    def fetch_active_tokens(
+        self,
     ) -> List[tuple[str, str, str, str, float, float]]:
         """
-        Fetch a limited number of tokens from the token_leaderboard table.
-
-        Args:
-            limit: Maximum number of tokens to fetch
+        Fetch List of tokens, which were mentioned in last 120 minutes on twitter
 
         Returns:
             List of tuples containing (token_id, pair_id, twitter, chain, marketcap, volume_24hrs)
         """
         query = FETCH_LIMITED_TOKENS_QUERY
-        result = self.execute_query(query, (limit,))
+        result = self.execute_query(query)
         return result if result else []
