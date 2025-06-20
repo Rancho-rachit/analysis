@@ -3,7 +3,8 @@ from typing import Optional, Literal, List, Dict, Any
 from .config import GeminiConfig
 import logging
 import json
-
+import re
+from .constants import RESPONSE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +52,9 @@ class SentimentAnalyzer:
                 "2. Does it have potential to impact the token's price?\n"
                 "3. How does the timing relate to recent price movements?\n"
                 "4. Compare the tweet content and timestamps to identify patterns or uniqueness\n\n"
-                "Respond with EXACTLY one word:\n"
-                "- 'positive' if the recent tweet contains unique, impactful information that could move the price\n"
-                "- 'negative' if it's just repeating old information or contains no significant news\n\n"
-                "Important: Only respond with 'positive' or 'negative', nothing else."
+                "Respond with EXACTLY one line in the following format (no explanation):\n"
+                "Score: <number between 0 and 100>\n\n"
+                "Where 0 means no impact and 100 means extremely likely to have a positive impact."
             )
 
             print(prompt)
@@ -63,15 +63,20 @@ class SentimentAnalyzer:
                 model=self.config.model_name, contents=prompt
             )
 
-            # Process response
-            decision = response.text.strip().lower()
-            if decision not in ["positive", "negative"]:
-                logger.warning(f"Unexpected response from model: {decision}")
-                return None, f"Unexpected model response: {decision}"
+            match = re.search(r"Score:\s*(\d{1,3})", response.text)
+            if not match:
+                logger.warning(f"Unexpected response from model: {response.text}")
+                return None, f"Unexpected model response: {response.text}"
+            score = int(match.group(1))
+            if score < 0 or score > 100:
+                logger.warning(f"Score out of range: {score}")
+                return None, f"Score out of range: {score}"
 
-            print("GEMINI RESPONSE:", response.text)
+            decision = "positive" if score >= RESPONSE_THRESHOLD else "negative"
 
-            return decision, "Analysis completed successfully"
+            print(f"GEMINI RESPONSE: {response.text} (score={score}, decision={decision})")
+
+            return decision, f"Score: {score}"
 
         except Exception as e:
             logger.error(f"Error in sentiment analysis: {e}")

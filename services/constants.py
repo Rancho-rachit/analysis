@@ -1,3 +1,5 @@
+RESPONSE_THRESHOLD = 60
+
 FETCH_RECENT_TWEETS_QUERY = """
             SELECT tweet_id, body, tweet_create_time, author_handle
             FROM twitter.enhanced_tweets
